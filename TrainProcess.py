@@ -69,7 +69,7 @@ def prepareImgs():
         for i in range(3):
             imgPath = line[i]
             # print(imgPath)
-            img = cv2.imread(imgPath)
+            img = cv2.imread(imgPath)  # OpenCV处理图片
             imgs.append(img)
             # 修正角度
             angel = float(line[3])
@@ -103,27 +103,38 @@ def trainModel():
 
     # Build the model
     model = Sequential()
-    model.add(Lambda(lambda x: x / 255.0 - 0.5, input_shape=(160, 320, 3)))
-    model.add(Cropping2D(cropping=((70, 25), (0, 0))))
-    model.add(Conv2D(8, (3, 3), activation='relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.2))
-    model.add(Conv2D(16, (3, 3), activation='relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.2))
-    model.add(Conv2D(32, (3, 3), activation='relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Dropout(0.2))
-    model.add(Flatten())
-    model.add(Dense(512, activation='relu'))
-    model.add(Dropout(0.2))
-    model.add(Dense(256, activation='relu'))
-    model.add(Dropout(0.2))
-    model.add(Dense(1))
-    print("Prepare Model Comple,training...")
+    model.add(Lambda(lambda x: x / 255.0 - 0.5, input_shape=(160, 320, 3)))  # ??
+    model.add(Cropping2D(cropping=((70, 25), (0, 0))))  # 对2D图像进行裁剪
 
-    model.compile(loss='mse', optimizer=optimizers.Adam(lr=0.0001))
+    model.add(Conv2D(8, (3, 3), activation='relu'))  # Covolutional layer
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.2))  # 在训练过程中每次更新参数时随机断开一定百分比(p),防止过拟合
+
+    model.add(Conv2D(16, (3, 3), activation='relu'))  # Covolutional layer
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.2))
+
+    model.add(Conv2D(32, (3, 3), activation='relu'))  # Covolutional layer
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(0.2))
+
+    model.add(Flatten())  # Flatten层用来将输入“压平”，即把多维的输入一维化，常用在从卷积层到全连接层的过渡。Flatten不影响batch的大小。
+
+    model.add(Dense(512, activation='relu'))  # fully connected layer
+    model.add(Dropout(0.2))
+
+    model.add(Dense(256, activation='relu'))  # fully connected layer
+    model.add(Dropout(0.2))
+
+    model.add(Dense(1))  # 输出层size为1
+    print("Prepare Model Comple,training...")
+    # 使用linear activation对steering angle做regression。
+    model.compile(loss='mse', optimizer=optimizers.Adam(lr=0.0001))  # 编译,设置损失函数与优化器
+
+    # 回调函数 save_best_only=True意味着将只保存验证集上性能最好的模型
     best_model = ModelCheckpoint('model_best.h5', verbose=2, save_best_only=True)
+
+    # 参数依次为:特征属性 标签 以0.2的比例划分训练集测试集 选择打乱样本 训练30次 选择回调函数
     model.fit(X_train, y_train, validation_split=0.2, shuffle=True, epochs=30, callbacks=[best_model])
 
     model.save('model_last.h5')
